@@ -19,7 +19,7 @@ def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='latin1')
     return dict
-
+st.subheader("姓名：龙海浪"+"                  "+"学号：2109120127")
 st.title(':blue[这是一个自由选择模型的图像识别streamlit应用！] :sunglasses:')
 
 st.write('首先声明该应用的模型识别所用的训练集为 CIFAR-100 数据集')
