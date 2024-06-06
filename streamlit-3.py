@@ -15,7 +15,6 @@ from skimage.transform import resize
 from skimage.feature import hog
 from sklearn.feature_selection import SelectKBest,chi2
 st.balloons()
-st.snow()
 def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='latin1')
