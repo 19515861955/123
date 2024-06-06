@@ -56,7 +56,7 @@ def SIFTup(x):
         # 加载保存的文件
     image = cv2.imread("temp_image.jpg")
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 将图像转换为灰度图像
-    sift = cv2.xfeatures2d.SIFT_create()
+    sift = cv2.SIFT_create()
     keypoints, descriptors = sift.detectAndCompute(gray_image, None)
    # 使用 PCA 进行特征降维到 50 维
     pca = PCA(n_components=50)
