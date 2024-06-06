@@ -177,7 +177,7 @@ if st.button("开始预测",type="primary"):
         mean = [0.5070751592371323, 0.48654887331495095, 0.4409178433670343]
         std = [0.2673342858792401, 0.2564384629170883, 0.27615047132568404]
         # 加载保存的模型文件
-        model = torch.load("models/CIFAR100_epoch50.pth")
+        model = torch.load("models/CIFAR100_epoch50.pth",map_location='cpu')
         # 图像预处理
         transform = transforms.Compose([
             transforms.Resize((32, 32)),  # 调整图像大小为32x32
