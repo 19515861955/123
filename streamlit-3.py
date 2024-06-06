@@ -108,7 +108,7 @@ if uploaded_file is not None:
     st.image(opencv_image, channels="BGR")
 
 if st.button("开始预测",type="primary"):
-    if optionone == "NET":
+        if optionone == "NET":
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
@@ -116,15 +116,20 @@ if st.button("开始预测",type="primary"):
     # 加载保存的模型
         model = Net()
         model.load_state_dict(torch.load('models/model_cifar.pt',map_location='cpu'))
-
+    # 判断是否有GPU
+        train_on_gpu = torch.cuda.is_available()
     # 将模型参数转换为与设备匹配的类型
-        model = model.cpu()
+        if train_on_gpu:
+            model = model.cuda()
+        else:
+            model = model.cpu()
     # 对图片进行转换
         image = Image.open(uploaded_file).convert('RGB')
         image_tensor = transform(image).unsqueeze_(0)
 
     # 判断是否有GPU
-        image_tensor = image_tensor.cuda()
+        if train_on_gpu:
+            image_tensor = image_tensor.cuda()
 
     # 进行预测
         output = model(image_tensor)
