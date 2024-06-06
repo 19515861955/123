@@ -10,7 +10,6 @@ from skimage.transform import resize
 from skimage.feature import hog
 from sklearn.feature_selection import SelectKBest,chi2
 st.balloons()
-st.snow()
 st.subheader("姓名：龙海浪"+" "+"学号：2109120127")
 def unpickle(file):
     with open(file, 'rb') as fo:
