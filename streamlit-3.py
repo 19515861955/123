@@ -1,7 +1,6 @@
 import os,streamlit as st,cv2,numpy as np,torchvision,pickle,torchvision.transforms as transforms
 from PIL import Image
 from sklearn.decomposition import PCA
-from torchvision import datasets
 from experimentmodel import *
 from translate import Translator
 from skimage import feature as ft, color
@@ -9,7 +8,9 @@ from joblib import load
 from skimage.transform import resize
 from skimage.feature import hog
 from sklearn.feature_selection import SelectKBest,chi2
+
 st.balloons()
+st.snow()
 st.subheader("姓名：龙海浪"+" "+"学号：2109120127")
 def unpickle(file):
     with open(file, 'rb') as fo:
@@ -97,7 +98,7 @@ with col2:
     )
     optionthree=option3
 # 上传图片并展示
-uploaded_file = st.file_uploader("上传一张图片", type="jpg")
+uploaded_file = st.file_uploader("上传一张图片(注：jpg或jpge格式)", type="jpg")
 
 if uploaded_file is not None:
     # 将传入的文件转为Opencv格式
@@ -112,7 +113,6 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
-        test_data = datasets.CIFAR100('./100', train=False, download=False, transform=transform)
     # 加载保存的模型
         model = Net()
         model.load_state_dict(torch.load('models/model_cifar.pt'))
@@ -140,7 +140,8 @@ if st.button("开始预测",type="primary"):
         _, predicted = torch.max(output, 1)
 
     # 获取预测的类别名称
-        predicted_class = test_data.classes[predicted[0].item()]
+        cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
+        predicted_class = cifar100_labels[predicted[0].item()]
 
         a = Translator(from_lang="English", to_lang="Chinese").translate(predicted_class)
     # 打印预测结果
@@ -154,8 +155,6 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,))
         ])
-        data_test = datasets.CIFAR100(root="./100", transform=transform, train=False, download=False)
-        class_labels = data_test.classes
         # 加载待预测的图片
             # 保存上传的文件到本地
         with open("temp_image.jpg", "wb") as file:
@@ -172,7 +171,8 @@ if st.button("开始预测",type="primary"):
         # 对图片进行预测
         output = model(test_image)
         pred = output.argmax(1)
-        class_name = class_labels[pred.item()]
+        cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
+        class_name = cifar100_labels[pred.item()]
         a = Translator(from_lang="English", to_lang="Chinese").translate(class_name)
         st.write('(MLP模型）您上传的图片预测类别结果为：', a, class_name)
         # 删除临时图片文件
@@ -188,7 +188,6 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize(mean, std)  # 标准化图像数据
         ])
-        train_data = torchvision.datasets.CIFAR100('./100', train=True, transform=transform, download=False)
         # 要预测的图像文件
 
         # 加载和预处理图像
@@ -206,8 +205,8 @@ if st.button("开始预测",type="primary"):
             _, predicted = torch.max(output, 1)
 
         # 获取预测的类别名称
-        class_names = train_data.classes
-        predicted_class = class_names[predicted.item()]
+        cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
+        predicted_class = cifar100_labels[predicted.item()]
         a = Translator(from_lang="English", to_lang="Chinese").translate(predicted_class)
         st.write('（RESNET18模型）您上传的图片预测类别结果为：', a, predicted_class)
     elif optiontwo=="LBP" and optionthree=="朴素贝叶斯模型":
