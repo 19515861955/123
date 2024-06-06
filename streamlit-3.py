@@ -108,7 +108,7 @@ if uploaded_file is not None:
     st.image(opencv_image, channels="BGR")
 
 if st.button("开始预测",type="primary"):
-        if optionone == "NET":
+    if optionone == "NET":
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
