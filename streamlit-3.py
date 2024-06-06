@@ -1,25 +1,67 @@
-import os
-import streamlit as st
-import cv2,numpy as np
-import torchvision
+import os,streamlit as st,cv2,numpy as np,torchvision,pickle,torchvision.transforms as transforms
 from PIL import Image
 from sklearn.decomposition import PCA
 from torchvision import datasets
-import torchvision.transforms as transforms
 from experimentmodel import *
 from translate import Translator
-import pickle
 from skimage import feature as ft, color
 from joblib import load
 from skimage.transform import resize
 from skimage.feature import hog
 from sklearn.feature_selection import SelectKBest,chi2
 st.balloons()
+st.snow()
+st.subheader("姓名：龙海浪"+" "+"学号：2109120127")
 def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='latin1')
     return dict
-st.subheader("姓名：龙海浪"+"                  "+"学号：2109120127")
+def LBPup(x):
+    with open("temp_image.jpg", "wb") as file:
+        file.write(x.getvalue())
+        # 加载保存的文件
+    image = cv2.imread("temp_image.jpg")
+    # 进行图像裁剪和灰度化
+    image = image[2:30, 2:30, :]
+    gray_image = color.rgb2gray(image)
+    # 进行LBP特征提取
+    radius = 2
+    n_points = radius * 8
+    lbp = ft.local_binary_pattern(gray_image, n_points, radius, method='uniform')
+    # 将LBP特征向量转换为一维数组
+    lbp_vector = lbp.flatten().astype(float)
+   # 加载PCA模型
+    pca = load('models/pca_modelLBP.pth')
+    # 对特征向量进行PCA降维
+    lbp_vector = pca.transform(lbp_vector.reshape(1, -1))
+    return lbp_vector
+
+def HOGup(x):
+    image = np.array(Image.open(x).convert('RGB'))
+    resized_image = resize(image, (32, 32))
+    # 将图像转换为灰度图像
+    image_gray = np.dot(resized_image[..., :3], [0.299, 0.587, 0.114])
+    # 计算HOG特征
+    orientations = 9
+    pixels_per_cell = (8, 8)
+    hog_features = hog(image_gray, orientations=orientations, pixels_per_cell=pixels_per_cell)
+    hog_features = hog_features.reshape(1, -1)
+    feature_selector = SelectKBest(chi2, k=50)
+    hog_features_new = feature_selector.fit_transform(hog_features, [0])  # 使用 [0] 作为目标值示例
+    return hog_features_new
+
+def SIFTup(x):
+    with open("temp_image.jpg", "wb") as file:
+        file.write(x.getvalue())
+        # 加载保存的文件
+    image = cv2.imread("temp_image.jpg")
+    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 将图像转换为灰度图像
+    sift = cv2.xfeatures2d.SIFT_create()
+    keypoints, descriptors = sift.detectAndCompute(gray_image, None)
+   # 使用 PCA 进行特征降维到 50 维
+    pca = PCA(n_components=50)
+    reduced_features = pca.fit_transform(descriptors)
+    return reduced_features
 st.title(':blue[这是一个自由选择模型的图像识别streamlit应用！] :sunglasses:')
 
 st.write('首先声明该应用的模型识别所用的训练集为 CIFAR-100 数据集')
@@ -71,7 +113,7 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ])
-        test_data = datasets.CIFAR100('./100', train=False, download=True, transform=transform)
+        test_data = datasets.CIFAR100('./100', train=False, download=False, transform=transform)
     # 加载保存的模型
         model = Net()
         model.load_state_dict(torch.load('models/model_cifar.pt'))
@@ -113,7 +155,7 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize((0.5,), (0.5,))
         ])
-        data_test = datasets.CIFAR100(root="./100", transform=transform, train=False, download=True)
+        data_test = datasets.CIFAR100(root="./100", transform=transform, train=False, download=False)
         class_labels = data_test.classes
         # 加载待预测的图片
             # 保存上传的文件到本地
@@ -147,7 +189,7 @@ if st.button("开始预测",type="primary"):
             transforms.ToTensor(),
             transforms.Normalize(mean, std)  # 标准化图像数据
         ])
-        train_data = torchvision.datasets.CIFAR100('./100', train=True, transform=transform, download=True)
+        train_data = torchvision.datasets.CIFAR100('./100', train=True, transform=transform, download=False)
         # 要预测的图像文件
 
         # 加载和预处理图像
@@ -170,26 +212,8 @@ if st.button("开始预测",type="primary"):
         a = Translator(from_lang="English", to_lang="Chinese").translate(predicted_class)
         st.write('（RESNET18模型）您上传的图片预测类别结果为：', a, predicted_class)
     elif optiontwo=="LBP" and optionthree=="朴素贝叶斯模型":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-    # 进行图像裁剪和灰度化
-        image = image[2:30, 2:30, :]
-        gray_image = color.rgb2gray(image)
-    # 进行LBP特征提取
-        radius = 2
-        n_points = radius * 8
-        lbp = ft.local_binary_pattern(gray_image, n_points, radius, method='uniform')
-    # 将LBP特征向量转换为一维数组
-        lbp_vector = lbp.flatten().astype(float)
-
-    # 加载PCA模型
-        pca = load('models/pca_modelLBP.pth')
-
     # 对特征向量进行PCA降维
-        lbp_vector = pca.transform(lbp_vector.reshape(1, -1))
-
+        lbp_vector = LBPup(uploaded_file)
     # 加载朴素贝叶斯模型
         model_beiyensi = load('models/beiyesimodelLBP.pth')
         pred_beiyensi = model_beiyensi.predict(lbp_vector)
@@ -198,25 +222,8 @@ if st.button("开始预测",type="primary"):
         st.write("LBP特征朴素贝叶斯预测类别：", cifar100_labels[pred_beiyensi[0]], a)
         os.remove("temp_image.jpg")
     elif optiontwo=="LBP" and optionthree=="KNN":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-    # 进行图像裁剪和灰度化
-        image = image[2:30, 2:30, :]
-        gray_image = color.rgb2gray(image)
-    # 进行LBP特征提取
-        radius = 2
-        n_points = radius * 8
-        lbp = ft.local_binary_pattern(gray_image, n_points, radius, method='uniform')
-    # 将LBP特征向量转换为一维数组
-        lbp_vector = lbp.flatten().astype(float)
-
-    # 加载PCA模型
-        pca = load('models/pca_modelLBP.pth')
-
     # 对特征向量进行PCA降维
-        lbp_vector = pca.transform(lbp_vector.reshape(1, -1))
+        lbp_vector = LBPup(uploaded_file)
         model_knn = load('models/KNNmodelLBP.pth')
         pred_knn = model_knn.predict(lbp_vector)
         cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
@@ -224,25 +231,7 @@ if st.button("开始预测",type="primary"):
         st.write("LBP特征KNN预测类别：", cifar100_labels[pred_knn[0]],b)
         os.remove("temp_image.jpg")
     elif optiontwo == "LBP" and optionthree == "逻辑回归":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-        # 进行图像裁剪和灰度化
-        image = image[2:30, 2:30, :]
-        gray_image = color.rgb2gray(image)
-        # 进行LBP特征提取
-        radius = 2
-        n_points = radius * 8
-        lbp = ft.local_binary_pattern(gray_image, n_points, radius, method='uniform')
-        # 将LBP特征向量转换为一维数组
-        lbp_vector = lbp.flatten().astype(float)
-
-        # 加载PCA模型
-        pca = load('models/pca_modelLBP.pth')
-
-        # 对特征向量进行PCA降维
-        lbp_vector = pca.transform(lbp_vector.reshape(1, -1))
+        lbp_vector = LBPup(uploaded_file)
         model_luoji = load('models/luojimodelLBP.pth')
         pred_luoji = model_luoji.predict(lbp_vector)
         cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
@@ -250,74 +239,28 @@ if st.button("开始预测",type="primary"):
         st.write("LBP特征逻辑回归预测类别：", cifar100_labels[pred_luoji[0]],c)
         os.remove("temp_image.jpg")
     elif optiontwo == "HOG" and optionthree == "朴素贝叶斯模型":
-        image = np.array(Image.open(uploaded_file).convert('RGB'))
-        resized_image = resize(image, (32, 32))
-        # 将图像转换为灰度图像
-        image_gray = np.dot(resized_image[..., :3], [0.299, 0.587, 0.114])
-        # 计算HOG特征
-        orientations = 9
-        pixels_per_cell = (8, 8)
-        hog_features = hog(image_gray, orientations=orientations, pixels_per_cell=pixels_per_cell)
+        hog_features_new = HOGup(uploaded_file)
         model_beiyesi = load('models/beiyesimodelHOG.pth')
-        hog_features = hog_features.reshape(1, -1)
-        feature_selector = SelectKBest(chi2, k=50)
-        hog_features_new = feature_selector.fit_transform(hog_features, [0])  # 使用 [0] 作为目标值示例
-
-        # Predict with each model
         prediction_beiyesi = model_beiyesi.predict(hog_features_new)
         cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
         a = Translator(from_lang="English", to_lang="Chinese").translate(cifar100_labels[prediction_beiyesi[0]])
         st.write("HOG特征朴素贝叶斯模型预测类别为：", prediction_beiyesi[0],a)
     elif optiontwo == "HOG" and optionthree == "KNN":
-        image = np.array(Image.open(uploaded_file).convert('RGB'))
-        resized_image = resize(image, (32, 32))
-        # 将图像转换为灰度图像
-        image_gray = np.dot(resized_image[..., :3], [0.299, 0.587, 0.114])
-        # 计算HOG特征
-        orientations = 9
-        pixels_per_cell = (8, 8)
-        hog_features = hog(image_gray, orientations=orientations, pixels_per_cell=pixels_per_cell)
+        hog_features_new = HOGup(uploaded_file)
         model_KNN = load('models/KNNmodelHOG.pth')
-        hog_features = hog_features.reshape(1, -1)
-        feature_selector = SelectKBest(chi2, k=50)
-        hog_features_new = feature_selector.fit_transform(hog_features, [0])  # 使用 [0] 作为目标值示例
-
-        # Predict with each model
         prediction_KNN = model_KNN.predict(hog_features_new)
         cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
         b = Translator(from_lang="English", to_lang="Chinese").translate(cifar100_labels[prediction_KNN[0]])
         st.write("HOG特征的KNN模型预测类别为：", prediction_KNN[0],b)
     elif optiontwo == "HOG" and optionthree == "逻辑回归":
-        image = np.array(Image.open(uploaded_file).convert('RGB'))
-        resized_image = resize(image, (32, 32))
-        # 将图像转换为灰度图像
-        image_gray = np.dot(resized_image[..., :3], [0.299, 0.587, 0.114])
-        # 计算HOG特征
-        orientations = 9
-        pixels_per_cell = (8, 8)
-        hog_features = hog(image_gray, orientations=orientations, pixels_per_cell=pixels_per_cell)
+        hog_features_new = HOGup(uploaded_file)
         model_luoji = load('models/luojimodelHOG.pth')
-        hog_features = hog_features.reshape(1, -1)
-        feature_selector = SelectKBest(chi2, k=50)
-        hog_features_new = feature_selector.fit_transform(hog_features, [0])  # 使用 [0] 作为目标值示例
-
-        # Predict with each model
         prediction_luoji = model_luoji.predict(hog_features_new)
         cifar100_labels = unpickle("cifar-100-python/meta")['fine_label_names']
         c = Translator(from_lang="English", to_lang="Chinese").translate(cifar100_labels[prediction_luoji[0]])
         st.write("HOG特征的逻辑回归模型预测类别为：", prediction_luoji[0],c)
     elif optiontwo == "SIFT" and optionthree == "朴素贝叶斯模型":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 将图像转换为灰度图像
-        sift = cv2.xfeatures2d.SIFT_create()
-        keypoints, descriptors = sift.detectAndCompute(gray_image, None)
-
-        # 使用 PCA 进行特征降维到 50 维
-        pca = PCA(n_components=50)
-        reduced_features = pca.fit_transform(descriptors)
+        reduced_features = SIFTup(uploaded_file)
         # 加载模型
         model1 = load('models/beiyesimodelsift.pth')
         predicted_class1 = model1.predict(reduced_features)
@@ -327,17 +270,7 @@ if st.button("开始预测",type="primary"):
         st.write("SIFT特征朴素贝叶斯模型预测类别为：", predicted_class1, a)
         os.remove("temp_image.jpg")
     elif optiontwo == "SIFT" and optionthree == "KNN":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 将图像转换为灰度图像
-        sift = cv2.xfeatures2d.SIFT_create()
-        keypoints, descriptors = sift.detectAndCompute(gray_image, None)
-
-        # 使用 PCA 进行特征降维到 50 维
-        pca = PCA(n_components=50)
-        reduced_features = pca.fit_transform(descriptors)
+        reduced_features = SIFTup(uploaded_file)
         # 加载模型
         model2 = load('models/KNNmodelsift.pth')
         predicted_class2 = model2.predict(reduced_features)
@@ -347,17 +280,7 @@ if st.button("开始预测",type="primary"):
         st.write("SIFT特征KNN模型预测类别为：", predicted_class2, b)
         os.remove("temp_image.jpg")
     elif optiontwo == "SIFT" and optionthree == "逻辑回归":
-        with open("temp_image.jpg", "wb") as file:
-            file.write(uploaded_file.getvalue())
-            # 加载保存的文件
-        image = cv2.imread("temp_image.jpg")
-        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 将图像转换为灰度图像
-        sift = cv2.xfeatures2d.SIFT_create()
-        keypoints, descriptors = sift.detectAndCompute(gray_image, None)
-
-        # 使用 PCA 进行特征降维到 50 维
-        pca = PCA(n_components=50)
-        reduced_features = pca.fit_transform(descriptors)
+        reduced_features = SIFTup(uploaded_file)
         # 加载模型
         model3 = load('models/luojimodelsift.pth')
         predicted_class3= model3.predict(reduced_features)
